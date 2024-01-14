@@ -1,0 +1,110 @@
+import pygame
+import random
+import math
+
+# Define colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+
+# Define constants
+SCREEN_WIDTH = 600
+SCREEN_HEIGHT = 400
+ROBOT_RADIUS = 10
+GOAL_RADIUS = 15
+OBSTACLE_RADIUS = 30
+NUM_OBSTACLES = 5
+STEP_SIZE = 10
+
+# Initialize Pygame
+pygame.init()
+
+# Create screen
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption('Path Planning with Dynamic Obstacles')
+
+# Define classes
+class Node:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.parent = None
+
+def distance(node1, node2):
+    return math.sqrt((node1.x - node2.x)**2 + (node1.y - node2.y)**2)
+
+def is_collision(point):
+    for obstacle in obstacles:
+        if distance(point, obstacle) < ROBOT_RADIUS + OBSTACLE_RADIUS:
+            return True
+    return False
+
+def draw_environment():
+    screen.fill(WHITE)
+    pygame.draw.circle(screen, GREEN, goal, GOAL_RADIUS)
+    pygame.draw.circle(screen, BLACK, start, ROBOT_RADIUS)
+    for obstacle in obstacles:
+        pygame.draw.circle(screen, RED, (int(obstacle.x), int(obstacle.y)), OBSTACLE_RADIUS)
+
+def draw_path(node):
+    while node.parent:
+        pygame.draw.line(screen, BLACK, (node.x, node.y), (node.parent.x, node.parent.y), 2)
+        node = node.parent
+
+# Generate random obstacles
+obstacles = [Node(random.randint(OBSTACLE_RADIUS, SCREEN_WIDTH - OBSTACLE_RADIUS),
+                  random.randint(OBSTACLE_RADIUS, SCREEN_HEIGHT - OBSTACLE_RADIUS))
+              for _ in range(NUM_OBSTACLES)]
+
+# Set start and goal configurations
+start = Node(ROBOT_RADIUS, SCREEN_HEIGHT // 2)
+goal = Node(SCREEN_WIDTH - GOAL_RADIUS, SCREEN_HEIGHT // 2)
+
+# RRT algorithm
+nodes = [start]
+while True:
+    random_point = Node(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT))
+
+    # Choose the closest node in the tree
+    closest_node = min(nodes, key=lambda n: distance(n, random_point))
+
+    # Move towards the random point
+    angle = math.atan2(random_point.y - closest_node.y, random_point.x - closest_node.x)
+    new_x = closest_node.x + int(STEP_SIZE * math.cos(angle))
+    new_y = closest_node.y + int(STEP_SIZE * math.sin(angle))
+    new_node = Node(new_x, new_y)
+
+    # Check for collision
+    if not is_collision(new_node):
+        new_node.parent = closest_node
+        nodes.append(new_node)
+
+        # Check if reached the goal
+        if distance(new_node, goal) < GOAL_RADIUS:
+            draw_path(new_node)
+            break
+
+    # Handle events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            quit()
+
+    # Visualization
+    draw_environment()
+    pygame.display.flip()
+
+# Main loop
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    # Draw environment
+    draw_environment()
+    pygame.display.flip()
+
+# Quit Pygame
+pygame.quit()
